@@ -16,8 +16,8 @@
                 <header>
                     <h2>ROOM</h2>
                     <div class="button-container">
-                        <button onclick="joinRoom('room')">입장</button>
-                        <button onclick="exitRoom('room')">퇴장</button>
+                        <button onclick="joinRoom(currentRoom)">입장</button>
+                        <button onclick="exitRoom(currentRoom)">퇴장</button>
                     </div>
                 </header>
                 <div class="users" id="room-users"></div>
@@ -26,8 +26,8 @@
                 </div>
                 <div class="chat-input">
                     <input type="text" class="room-message-input" id="room-message-input" placeholder="메시지를 입력하세요."
-                        onkeyup="sendMessage(event, 'room')" />
-                    <button onclick="sendRoomMessage('room')">보내기</button>
+                        onkeyup="sendMessage(event, currentRoom)" />
+                    <button onclick="sendRoomMessage(currentRoom)">보내기</button>
                 </div>
             </div>
         </div>
@@ -36,6 +36,7 @@
     <script>
         const socket = io();
 
+        let currentRoom = 'room';
         const roomUsers = document.getElementById('room-users');
         const roomChatList = document.getElementById('room-chat-list');
         const roomChatContainer = document.getElementById('room-chat-container');
@@ -113,6 +114,9 @@
             appendMessage(room, `${userId} : ${message}`);
         });
 
+        socket.on('newRoomCreated', (newRoom) => {
+            currentRoom = newRoom;
+        })
         socket.on('joinError', (errorMessage) => {
             alert(errorMessage);
         })

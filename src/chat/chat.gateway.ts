@@ -74,6 +74,7 @@ export class ChatGateway {
     // 방에 대한 최대 인원을 확인하고, 만약 인원이 가득찼다면 새로운 방을 생성합니다.
     if (currentUsers >= maxUsers) {
       const newRoom = this.createRoom();
+      client.leave(room);
       client.join(newRoom);
 
       if (!this.roomUsers.has(newRoom)) {
@@ -118,7 +119,10 @@ export class ChatGateway {
   }
 
   createRoom(): string {
-    return `room-${Date.now()}`;
+    const newRoom = `room-${Date.now()}`;
+
+    this.server.emit('newRoomCreated', newRoom);
+    return newRoom;
   }
 
   @SubscribeMessage('exit')
