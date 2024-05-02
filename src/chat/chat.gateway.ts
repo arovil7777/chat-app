@@ -66,14 +66,14 @@ export class ChatGateway {
     }
 
     // 방에 대한 최대 인원을 확인합니다.
-    const maxUsers = this.maxRoomUsers.get(room) || 5; // 기본값으로 방의 최대 인원을 5명으로 설정합니다.
+    const maxUsers = this.maxRoomUsers.get(room) || 2; // 기본값으로 방의 최대 인원을 5명으로 설정합니다.
 
     // 방의 현재 유저 수를 확인합니다.
     const currentUsers = this.roomUsers.get(room)?.length || 0;
 
     // 방에 대한 최대 인원을 확인하고, 만약 인원이 가득찼다면 새로운 방을 생성합니다.
     if (currentUsers >= maxUsers) {
-      const newRoom = this.createRoom();
+      const newRoom = this.createRoom(room);
       client.leave(room);
       client.join(newRoom);
 
@@ -118,8 +118,9 @@ export class ChatGateway {
     });
   }
 
-  createRoom(): string {
-    const newRoom = `room-${Date.now()}`;
+  createRoom(room: string): string {
+    const roomNumber: number = Number(room.match(/\d+/)[0]);
+    const newRoom = `room - ${roomNumber + 1}`;
 
     this.server.emit('newRoomCreated', newRoom);
     return newRoom;

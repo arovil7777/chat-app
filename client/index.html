@@ -10,6 +10,7 @@
 <body>
     <div class="container">
         <h1>Socket.io 채팅 앱</h1>
+        <p>현재 방 번호: <span id="room-number"></span></p>
         <p>내 닉네임: <span id="random-animal-name"></span></p>
         <div class="rooms" id="rooms-container">
             <div class="room" id="room">
@@ -36,7 +37,7 @@
     <script>
         const socket = io();
 
-        let currentRoom = 'room';
+        let currentRoom = 'room - 0';
         const roomUsers = document.getElementById('room-users');
         const roomChatList = document.getElementById('room-chat-list');
         const roomChatContainer = document.getElementById('room-chat-container');
@@ -54,6 +55,7 @@
         socket.emit('setUserNick', getRandomAnimalName);
 
         const joinRoom = (room) => {
+            updateRoomNumber();
             socket.emit('join', room);
         }
 
@@ -90,6 +92,10 @@
             if (event.key === 'Enter') sendRoomMessage(room);
         }
 
+        const updateRoomNumber = () => {
+            document.getElementById('room-number').innerHTML = currentRoom.match(/\d+/)[0];
+        }
+
         socket.on('userList', ({ room, userList }) => {
             if (!room) return;
 
@@ -116,10 +122,12 @@
 
         socket.on('newRoomCreated', (newRoom) => {
             currentRoom = newRoom;
-        })
+            updateRoomNumber();
+        });
+
         socket.on('joinError', (errorMessage) => {
             alert(errorMessage);
-        })
+        });
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('random-animal-name').innerHTML = getRandomAnimalName;
