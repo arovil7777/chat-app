@@ -12,7 +12,7 @@ export class ChatGateway {
 
   connectedClients: Set<string> = new Set();
   clientNickName: Map<string, string> = new Map();
-  roomUsers: Map<string, string[]> = new Map();
+  roomUsers: Map<string, Set<string>> = new Map();
   maxRoomUsers: Map<string, number> = new Map();
 
   handleConnection(client: Socket): void {
@@ -29,21 +29,17 @@ export class ChatGateway {
     this.connectedClients.delete(client.id);
 
     // 클라이언트 연결이 종료되면 해당 클라이언트가 속한 모든 방에서 유저를 제거합니다.
-    this.roomUsers.forEach((userList, room) => {
-      const index = userList?.indexOf(this.clientNickName.get(client.id));
-      if (index !== -1) {
-        userList.splice(index, 1);
+    this.roomUsers.forEach((users, room) => {
+      if (users.has(client.id)) {
+        users.delete(client.id);
         this.server.to(room).emit('userLeft', {
           userId: this.clientNickName.get(client.id),
           room,
         });
-        this.server.to(room).emit('userList', { room, userList });
+        this.server
+          .to(room)
+          .emit('userList', { room, userList: Array.from(users) });
       }
-    });
-
-    // 모든 방의 유저 목록을 업데이트하여 emit합니다.
-    this.roomUsers.forEach((userList, room) => {
-      this.server.to(room).emit('userList', { room, userList });
     });
 
     // 연결된 클라이언트 목록을 업데이트하여 emit합니다.
@@ -69,7 +65,7 @@ export class ChatGateway {
     const maxUsers = this.maxRoomUsers.get(room) || 2; // 기본값으로 방의 최대 인원을 5명으로 설정합니다.
 
     // 방의 현재 유저 수를 확인합니다.
-    const currentUsers = this.roomUsers.get(room)?.length || 0;
+    const currentUsers = this.roomUsers.get(room)?.size || 0;
 
     // 방에 대한 최대 인원을 확인하고, 만약 인원이 가득찼다면 새로운 방을 생성합니다.
     if (currentUsers >= maxUsers) {
@@ -77,18 +73,17 @@ export class ChatGateway {
       client.leave(room);
       client.join(newRoom);
 
-      if (!this.roomUsers.has(newRoom)) {
-        this.roomUsers.set(newRoom, []);
-      }
+      const newRoomUsers = this.roomUsers.get(newRoom) || new Set();
+      newRoomUsers.add(client.id);
+      this.roomUsers.set(newRoom, newRoomUsers);
 
-      this.roomUsers.get(newRoom).push(this.clientNickName.get(client.id));
       this.server.to(newRoom).emit('userJoined', {
         userId: this.clientNickName.get(client.id),
         room: newRoom,
       });
       this.server.to(newRoom).emit('userList', {
         room: newRoom,
-        userList: this.roomUsers.get(newRoom),
+        userList: Array.from(newRoomUsers),
       });
 
       this.server.emit('userList', {
@@ -100,17 +95,16 @@ export class ChatGateway {
 
     client.join(room);
 
-    if (!this.roomUsers.has(room)) {
-      this.roomUsers.set(room, []);
-    }
+    const roomUsers = this.roomUsers.get(room) || new Set();
+    roomUsers.add(client.id);
+    this.roomUsers.set(room, roomUsers);
 
-    this.roomUsers.get(room).push(this.clientNickName.get(client.id));
     this.server
       .to(room)
       .emit('userJoined', { userId: this.clientNickName.get(client.id), room });
     this.server
       .to(room)
-      .emit('userList', { room, userList: this.roomUsers.get(room) });
+      .emit('userList', { room, userList: Array.from(roomUsers) });
 
     this.server.emit('userList', {
       room: null,
@@ -134,20 +128,16 @@ export class ChatGateway {
     }
     client.leave(room);
 
-    const userList = this.roomUsers.get(room);
-    const index = userList?.indexOf(this.clientNickName.get(client.id));
-    if (index !== -1) {
-      userList.splice(index, 1);
+    const roomUsers = this.roomUsers.get(room);
+    if (roomUsers?.has(client.id)) {
+      roomUsers.delete(client.id);
       this.server
         .to(room)
         .emit('userLeft', { userId: this.clientNickName.get(client.id), room });
-      this.server.to(room).emit('userList', { room, userList });
+      this.server
+        .to(room)
+        .emit('userList', { room, userList: Array.from(roomUsers) });
     }
-
-    // 모든 방의 유저 목록을 업데이트하여 emit합니다.
-    this.roomUsers.forEach((userList, room) => {
-      this.server.to(room).emit('userList', { room, userList });
-    });
 
     // 연결된 클라이언트 목록을 업데이트하여 emit합니다.
     this.server.emit('userList', {
@@ -158,9 +148,12 @@ export class ChatGateway {
 
   @SubscribeMessage('getUserList')
   handleGetUserList(room: string): void {
-    this.server
-      .to(room)
-      .emit('userList', { room, userList: this.roomUsers.get(room) });
+    const roomUsers = this.roomUsers.get(room);
+    if (roomUsers) {
+      this.server
+        .to(room)
+        .emit('userList', { room, userList: Array.from(roomUsers) });
+    }
   }
 
   @SubscribeMessage('chatMessage')
