@@ -2,8 +2,14 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+
+interface RoomInfo {
+  room: string;
+  users: string[];
+}
 
 @WebSocketGateway()
 export class ChatGateway {
@@ -154,6 +160,26 @@ export class ChatGateway {
         .to(room)
         .emit('userList', { room, userList: Array.from(roomUsers) });
     }
+  }
+
+  @SubscribeMessage('getCurrentRoomInfo')
+  handleGetCurrentRoomInfo(@ConnectedSocket() client: Socket): RoomInfo | null {
+    const room = this.getRoomForClient(client);
+    if (!room) {
+      return null;
+    }
+
+    const users = Array.from(this.roomUsers.get(room) || []);
+    return { room, users };
+  }
+
+  private getRoomForClient(client: Socket): string | null {
+    for (const [room, users] of this.roomUsers.entries()) {
+      if (users.has(client.id)) {
+        return room;
+      }
+    }
+    return null;
   }
 
   @SubscribeMessage('chatMessage')
