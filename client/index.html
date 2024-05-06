@@ -10,15 +10,14 @@
 <body>
     <div class="container">
         <h1>Socket.io 채팅 앱</h1>
-        <p>현재 방 번호: <span id="room-number"></span></p>
         <p>내 닉네임: <span id="random-animal-name"></span></p>
         <div class="rooms" id="rooms-container">
             <div class="room" id="room">
                 <header>
                     <h2>ROOM</h2>
                     <div class="button-container">
-                        <button onclick="joinRoom(currentRoom)">입장</button>
-                        <button onclick="exitRoom(currentRoom)">퇴장</button>
+                        <button onclick="joinRoom()">입장</button>
+                        <button onclick="exitRoom()">퇴장</button>
                     </div>
                 </header>
                 <div class="users" id="room-users"></div>
@@ -27,8 +26,8 @@
                 </div>
                 <div class="chat-input">
                     <input type="text" class="room-message-input" id="room-message-input" placeholder="메시지를 입력하세요."
-                        onkeyup="sendMessage(event, currentRoom)" />
-                    <button onclick="sendRoomMessage(currentRoom)">보내기</button>
+                        onkeyup="sendMessage(event)" />
+                    <button onclick="sendRoomMessage()">보내기</button>
                 </div>
             </div>
         </div>
@@ -54,24 +53,32 @@
         const getRandomAnimalName = animalNames[Math.floor(Math.random() * animalNames.length)] + '-' + Math.floor(Math.random() * 100).toString();
         socket.emit('setUserNick', getRandomAnimalName);
 
-        const joinRoom = (room) => {
-            updateRoomNumber();
-            socket.emit('join', room);
+        const joinRoom = () => {
+            socket.emit('join', currentRoom);
         }
 
-        const exitRoom = (room) => {
-            if (!room) return;
+        const exitRoom = () => {
+            socket.emit('getCurrentRoomInfo', (roomInfo) => {
+                if (roomInfo) {
+                    const { room } = roomInfo;
 
-            roomUsers.innerHTML = '';
-            roomChatList.innerHTML = '';
-            socket.emit('exit', room);
+                    socket.emit('exit', room);
+                }
+            });
         }
 
-        const sendRoomMessage = (room) => {
+        const sendRoomMessage = () => {
             const message = roomMessageInput.value.trim();
 
             if (message.trim() !== '') {
-                socket.emit('chatMessage', { message, room });
+                socket.emit('getCurrentRoomInfo', (roomInfo) => {
+                    if (roomInfo) {
+                        const { room } = roomInfo;
+
+                        socket.emit('chatMessage', { message, room });
+                    }
+                });
+
                 roomMessageInput.value = '';
             }
         }
@@ -88,17 +95,11 @@
             roomChatContainer.scrollTop = roomChatContainer.scrollHeight;
         }
 
-        const sendMessage = (event, room) => {
-            if (event.key === 'Enter') sendRoomMessage(room);
-        }
-
-        const updateRoomNumber = () => {
-            document.getElementById('room-number').innerHTML = currentRoom.match(/\d+/)[0];
+        const sendMessage = (event) => {
+            if (event.key === 'Enter') sendRoomMessage();
         }
 
         socket.on('userList', ({ room, userList }) => {
-            if (!room) return;
-
             const usersElement = roomUsers;
             usersElement.innerHTML = '';
             userList.forEach((userId) => {
@@ -122,7 +123,6 @@
 
         socket.on('newRoomCreated', (newRoom) => {
             currentRoom = newRoom;
-            updateRoomNumber();
         });
 
         socket.on('joinError', (errorMessage) => {

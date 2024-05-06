@@ -76,7 +76,6 @@ export class ChatGateway {
     // 방에 대한 최대 인원을 확인하고, 만약 인원이 가득찼다면 새로운 방을 생성합니다.
     if (currentUsers >= maxUsers) {
       const newRoom = this.createRoom(room);
-      client.leave(room);
       client.join(newRoom);
 
       const newRoomUsers = this.roomUsers.get(newRoom) || new Set();
@@ -173,6 +172,24 @@ export class ChatGateway {
     return { room, users };
   }
 
+  @SubscribeMessage('chatMessage')
+  handleChatMessage(
+    client: Socket,
+    data: { message: string; room: string },
+  ): void {
+    const room = this.getRoomForClient(client);
+    if (!room) {
+      return;
+    }
+
+    // 클라이언트가 보낸 채팅 메시지를 해당 방으로 전달합니다.
+    this.server.to(room).emit('chatMessage', {
+      userId: this.clientNickName.get(client.id),
+      message: data.message,
+      room: data.room,
+    });
+  }
+
   private getRoomForClient(client: Socket): string | null {
     for (const [room, users] of this.roomUsers.entries()) {
       if (users.has(client.id)) {
@@ -180,18 +197,5 @@ export class ChatGateway {
       }
     }
     return null;
-  }
-
-  @SubscribeMessage('chatMessage')
-  handleChatMessage(
-    client: Socket,
-    data: { message: string; room: string },
-  ): void {
-    // 클라이언트가 보낸 채팅 메시지를 해당 방으로 전달합니다.
-    this.server.to(data.room).emit('chatMessage', {
-      userId: this.clientNickName.get(client.id),
-      message: data.message,
-      room: data.room,
-    });
   }
 }
