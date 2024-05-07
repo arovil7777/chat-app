@@ -155,6 +155,12 @@ export class ChatGateway {
   handleGetUserList(room: string): void {
     const roomUsers = this.roomUsers.get(room);
     if (roomUsers) {
+      const userListWithNick: { id: string; nick: string }[] = [];
+      roomUsers.forEach((userId) => {
+        const nick = this.clientNickName.get(userId) || 'Unknown';
+        userListWithNick.push({ id: userId, nick });
+      });
+
       this.server
         .to(room)
         .emit('userList', { room, userList: Array.from(roomUsers) });
