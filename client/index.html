@@ -21,6 +21,10 @@
                     </div>
                 </header>
                 <div class="users" id="room-users"></div>
+                <div class="user-list">
+                    <h3>입장한 사용자 목록</h3>
+                    <ul id="user-list"></ul>
+                </div>
                 <div class="chat-container" id="room-chat-container">
                     <ul class="chat-list" id="room-chat-list"></ul>
                 </div>
@@ -38,6 +42,7 @@
 
         let currentRoom = 'room - 0';
         const roomUsers = document.getElementById('room-users');
+        const userListContainer = document.getElementById('user-list');
         const roomChatList = document.getElementById('room-chat-list');
         const roomChatContainer = document.getElementById('room-chat-container');
         const roomMessageInput = document.getElementById('room-message-input');
@@ -113,6 +118,8 @@
                             p.textContent = user.nick;
                             usersElement.appendChild(p);
                         });
+
+                        updateUserList(userList);
                     }
                 }
             });
@@ -120,10 +127,25 @@
 
         socket.on('userJoined', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방에 입장했습니다.`);
+
+            const listItem = document.createElement('li');
+            listItem.textContent = userId;
+            userListContainer.appendChild(listItem);
+
+            updateUserList(getCurrentUsers());
         });
 
         socket.on('userLeft', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방을 떠났습니다.`);
+
+            const userListItems = userListContainer.getElementsByTagName('li');
+            Array.from(userListItems).forEach(item => {
+                if (item.textContent === userId) {
+                    item.remove();
+                }
+            });
+
+            updateUserList(getCurrentUsers());
         });
 
         socket.on('chatMessage', ({ userId, message, room }) => {
@@ -141,6 +163,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('random-animal-name').innerHTML = getRandomAnimalName;
         });
+
+        function getCurrentUsers() {
+            const userListItems = userListContainer.getElementsByTagName('li');
+            return Array.from(userListItems).map(item => item.textContent);
+        }
+
+        function updateUserList(users) {
+            userListContainer.innerHTML = '';
+            console.log(users);
+            users.forEach((user) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = user;
+                userListContainer.appendChild(listItem);
+            });
+        }
     </script>
 </body>
 
