@@ -1,6 +1,6 @@
 body {
     font-family: 'Noto Sans KR', sans-serif;
-    background-color: #f0f0f0;
+    background-color: #f0f8ff;
     color: #333;
     margin: 0;
     padding: 10px;
@@ -27,8 +27,8 @@ h1 {
 }
 
 .room h2 {
-    background-color: #eee;
-    color: #333;
+    background-color: #87ceeb;
+    color: #fff;
     margin: 0;
     padding: 10px;
     border-radius: 10px 10px 0 0;
@@ -45,7 +45,7 @@ h1 {
 .button-container button {
     margin: 0 5px;
     padding: 5px 10px;
-    background-color: #aaa;
+    background-color: #66cdaa;
     color: white;
     border: none;
     border-radius: 5px;
@@ -54,7 +54,7 @@ h1 {
 }
 
 .button-container button:hover {
-    background-color: #888;
+    background-color: #20b2aa;
 }
 
 .users,
@@ -78,7 +78,7 @@ h1 {
 
 .chat-input button {
     padding: 5px 10px;
-    background-color: #777;
+    background-color: #4682b4;
     color: white;
     border: none;
     border-radius: 5px;
@@ -87,5 +87,5 @@ h1 {
 }
 
 .chat-input button:hover {
-    background-color: #555;
+    background-color: #4169e1;
 }
