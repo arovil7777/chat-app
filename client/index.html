@@ -66,10 +66,17 @@
             socket.emit('getCurrentRoomInfo', (roomInfo) => {
                 if (roomInfo) {
                     const { room } = roomInfo;
-
                     socket.emit('exit', room);
+
+                    clearUserList();
                 }
             });
+        }
+
+        const clearUserList = () => {
+            roomUsers.innerHTML = '';
+            userListContainer.innerHTML = '';
+            roomChatList.innerHTML = '';
         }
 
         const sendRoomMessage = () => {
@@ -131,8 +138,6 @@
             const listItem = document.createElement('li');
             listItem.textContent = userId;
             userListContainer.appendChild(listItem);
-
-            updateUserList(getCurrentUsers());
         });
 
         socket.on('userLeft', ({ userId, room }) => {
@@ -144,8 +149,6 @@
                     item.remove();
                 }
             });
-
-            updateUserList(getCurrentUsers());
         });
 
         socket.on('chatMessage', ({ userId, message, room }) => {
@@ -171,7 +174,6 @@
 
         function updateUserList(users) {
             userListContainer.innerHTML = '';
-            console.log(users);
             users.forEach((user) => {
                 const listItem = document.createElement('li');
                 listItem.textContent = user;
