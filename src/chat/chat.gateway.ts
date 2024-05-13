@@ -79,6 +79,9 @@ export class ChatGateway {
       client.join(newRoom);
 
       const newRoomUsers = this.roomUsers.get(newRoom) || new Set();
+      if (newRoomUsers.size >= maxUsers) {
+        return;
+      }
       newRoomUsers.add(client.id);
       this.roomUsers.set(newRoom, newRoomUsers);
 
