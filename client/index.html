@@ -100,7 +100,8 @@
             const li = document.createElement('li');
             li.className = 'chat-item';
             const p = document.createElement('p');
-            p.textContent = message;
+            const time = new Date().toLocaleTimeString();
+            p.textContent = `${time} - ${message}`;
             li.appendChild(p);
             chatList.appendChild(li);
 
