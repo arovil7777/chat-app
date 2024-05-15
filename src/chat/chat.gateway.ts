@@ -38,6 +38,7 @@ export class ChatGateway {
     this.roomUsers.forEach((users, room) => {
       if (users.has(client.id)) {
         users.delete(client.id);
+
         this.server.to(room).emit('userLeft', {
           userId: this.clientNickName.get(client.id),
           room,
@@ -139,6 +140,7 @@ export class ChatGateway {
     const roomUsers = this.roomUsers.get(room);
     if (roomUsers?.has(client.id)) {
       roomUsers.delete(client.id);
+
       this.server
         .to(room)
         .emit('userLeft', { userId: this.clientNickName.get(client.id), room });
@@ -159,6 +161,7 @@ export class ChatGateway {
     const roomUsers = this.roomUsers.get(room);
     if (roomUsers) {
       const userListWithNick: { id: string; nick: string }[] = [];
+
       roomUsers.forEach((userId) => {
         const nick = this.clientNickName.get(userId) || 'Unknown';
         userListWithNick.push({ id: userId, nick });
@@ -197,6 +200,16 @@ export class ChatGateway {
       message: data.message,
       room: data.room,
     });
+  }
+
+  @SubscribeMessage('typing')
+  handleTyping(client: Socket, data: { room: string; user: string }): void {
+    const room = this.getRoomForClient(client);
+    if (!room) {
+      return;
+    }
+
+    this.server.to(room).emit('typing', { user: data.user });
   }
 
   private getRoomForClient(client: Socket): string | null {
