@@ -28,6 +28,7 @@
                 <div class="chat-container" id="room-chat-container">
                     <ul class="chat-list" id="room-chat-list"></ul>
                 </div>
+                <div id="typing-indicator" style="display: none;">상대방이 입력 중입니다...</div>
                 <div class="chat-input">
                     <input type="text" class="room-message-input" id="room-message-input" placeholder="메시지를 입력하세요."
                         onkeyup="sendMessage(event)" />
@@ -86,7 +87,6 @@
                 socket.emit('getCurrentRoomInfo', (roomInfo) => {
                     if (roomInfo) {
                         const { room } = roomInfo;
-
                         socket.emit('chatMessage', { message, room });
                     }
                 });
@@ -99,9 +99,11 @@
             const chatList = roomChatList;
             const li = document.createElement('li');
             li.className = 'chat-item';
+
             const p = document.createElement('p');
             const time = new Date().toLocaleTimeString();
             p.textContent = `${time} - ${message}`;
+
             li.appendChild(p);
             chatList.appendChild(li);
 
@@ -110,6 +112,7 @@
 
         const sendMessage = (event) => {
             if (event.key === 'Enter') sendRoomMessage();
+            socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
         }
 
         socket.on('userList', ({ room, userList }) => {
@@ -121,6 +124,7 @@
                     if (enteredRoom === room) {
                         const usersElement = roomUsers;
                         usersElement.innerHTML = '';
+
                         userList.forEach((user) => {
                             const p = document.createElement('p');
                             p.textContent = user.nick;
@@ -168,6 +172,19 @@
             document.getElementById('random-animal-name').innerHTML = getRandomAnimalName;
         });
 
+        let typingTimeout;
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'block';
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(hideTypingIndicator, 3000); // 3초 후 인디케이터 숨기기
+        }
+
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
+
         function getCurrentUsers() {
             const userListItems = userListContainer.getElementsByTagName('li');
             return Array.from(userListItems).map(item => item.textContent);
@@ -181,6 +198,14 @@
                 userListContainer.appendChild(listItem);
             });
         }
+
+        roomMessageInput.addEventListener('input', () => {
+            socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
+        });
+
+        socket.on('typing', ({ user }) => {
+            showTypingIndicator();
+        })
     </script>
 </body>
 
