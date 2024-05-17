@@ -212,6 +212,13 @@ export class ChatGateway {
     this.server.to(room).emit('typing', { user: data.user });
   }
 
+  @SubscribeMessage('stopTyping')
+  handleStopTyping(client: Socket, room: string): void {
+    this.server
+      .to(room)
+      .emit('stopTyping', { user: this.clientNickName.get(client.id) });
+  }
+
   private getRoomForClient(client: Socket): string | null {
     for (const [room, users] of this.roomUsers.entries()) {
       if (users.has(client.id)) {
