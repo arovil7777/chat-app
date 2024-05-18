@@ -88,10 +88,12 @@
                     if (roomInfo) {
                         const { room } = roomInfo;
                         socket.emit('chatMessage', { message, room });
+                        socket.emit('stopTyping', room);
                     }
                 });
 
                 roomMessageInput.value = '';
+                hideTypingIndicator();
             }
         }
 
@@ -111,8 +113,12 @@
         }
 
         const sendMessage = (event) => {
-            if (event.key === 'Enter') sendRoomMessage();
-            socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
+            if (event.key === 'Enter') {
+                sendRoomMessage();
+                hideTypingIndicator();
+            } else {
+                socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
+            }
         }
 
         socket.on('userList', ({ room, userList }) => {
@@ -205,6 +211,10 @@
 
         socket.on('typing', ({ user }) => {
             showTypingIndicator();
+        });
+
+        socket.on('stopTyping', ({ user }) => {
+            hideTypingIndicator();
         })
     </script>
 </body>
