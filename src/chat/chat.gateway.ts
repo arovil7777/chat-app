@@ -8,7 +8,7 @@ import { Server, Socket } from 'socket.io';
 
 interface RoomInfo {
   room: string;
-  users: string[];
+  users: { id: string; nick: string }[];
 }
 
 @WebSocketGateway()
@@ -45,14 +45,14 @@ export class ChatGateway {
         });
         this.server
           .to(room)
-          .emit('userList', { room, userList: Array.from(users) });
+          .emit('userList', { room, userList: this.getUserListWithNick(room) });
       }
     });
 
     // 연결된 클라이언트 목록을 업데이트하여 emit합니다.
     this.server.emit('userList', {
       room: null,
-      userList: Array.from(this.connectedClients),
+      userList: this.getUserListWithNick(null),
     });
   }
 
@@ -92,12 +92,12 @@ export class ChatGateway {
       });
       this.server.to(newRoom).emit('userList', {
         room: newRoom,
-        userList: Array.from(newRoomUsers),
+        userList: this.getUserListWithNick(newRoom),
       });
 
       this.server.emit('userList', {
         room: null,
-        userList: Array.from(this.connectedClients),
+        userList: this.getUserListWithNick(null),
       });
       return;
     }
@@ -113,11 +113,11 @@ export class ChatGateway {
       .emit('userJoined', { userId: this.clientNickName.get(client.id), room });
     this.server
       .to(room)
-      .emit('userList', { room, userList: Array.from(roomUsers) });
+      .emit('userList', { room, userList: this.getUserListWithNick(room) });
 
     this.server.emit('userList', {
       room: null,
-      userList: Array.from(this.connectedClients),
+      userList: this.getUserListWithNick(null),
     });
   }
 
@@ -146,30 +146,24 @@ export class ChatGateway {
         .emit('userLeft', { userId: this.clientNickName.get(client.id), room });
       this.server
         .to(room)
-        .emit('userList', { room, userList: Array.from(roomUsers) });
+        .emit('userList', { room, userList: this.getUserListWithNick(room) });
     }
 
     // 연결된 클라이언트 목록을 업데이트하여 emit합니다.
     this.server.emit('userList', {
       room: null,
-      userList: Array.from(this.connectedClients),
+      userList: this.getUserListWithNick(null),
     });
   }
 
   @SubscribeMessage('getUserList')
-  handleGetUserList(room: string): void {
+  handleGetUserList(@ConnectedSocket() client: Socket, room: string): void {
     const roomUsers = this.roomUsers.get(room);
     if (roomUsers) {
-      const userListWithNick: { id: string; nick: string }[] = [];
-
-      roomUsers.forEach((userId) => {
-        const nick = this.clientNickName.get(userId) || 'Unknown';
-        userListWithNick.push({ id: userId, nick });
-      });
-
+      const userListWithNick = this.getUserListWithNick(room);
       this.server
         .to(room)
-        .emit('userList', { room, userList: Array.from(roomUsers) });
+        .emit('userList', { room, userList: userListWithNick });
     }
   }
 
@@ -180,7 +174,7 @@ export class ChatGateway {
       return null;
     }
 
-    const users = Array.from(this.roomUsers.get(room) || []);
+    const users = this.getUserListWithNick(room);
     return { room, users };
   }
 
@@ -226,5 +220,28 @@ export class ChatGateway {
       }
     }
     return null;
+  }
+
+  private getUserListWithNick(
+    room: string | null,
+  ): { id: string; nick: string }[] {
+    const users: { id: string; nick: string }[] = [];
+    if (room) {
+      const roomUsers = this.roomUsers.get(room);
+      roomUsers?.forEach((userId) => {
+        users.push({
+          id: userId,
+          nick: this.clientNickName.get(userId) || 'Unknown',
+        });
+      });
+    } else {
+      this.connectedClients.forEach((clientId) => {
+        users.push({
+          id: clientId,
+          nick: this.clientNickName.get(clientId) || 'Unknown',
+        });
+      });
+    }
+    return users;
   }
 }
