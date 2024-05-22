@@ -125,15 +125,6 @@
                     const { room } = roomInfo;
 
                     if (enteredRoom === room) {
-                        /*const usersElement = roomUsers;
-                        usersElement.innerHTML = '';
-
-                        userList.forEach((user) => {
-                            const p = document.createElement('p');
-                            p.textContent = user.nick;
-                            usersElement.appendChild(p);
-                        });*/
-
                         updateUserList(userList);
                     }
                 }
@@ -143,22 +134,11 @@
         socket.on('userJoined', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방에 입장했습니다.`);
             addUserToList(userId);
-
-            /*const listItem = document.createElement('li');
-            listItem.textContent = userId;
-            userListContainer.appendChild(listItem);*/
         });
 
         socket.on('userLeft', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방을 떠났습니다.`);
             removeUserFromList(userId);
-
-            /*const userListItems = userListContainer.getElementsByTagName('li');
-            Array.from(userListItems).forEach(item => {
-                if (item.textContent === userId) {
-                    item.remove();
-                }
-            });*/
         });
 
         socket.on('chatMessage', ({ userId, message, room }) => {
