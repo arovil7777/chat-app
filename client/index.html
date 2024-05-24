@@ -59,7 +59,7 @@
 
         const joinRoom = () => {
             socket.emit('join', currentRoom);
-        }
+        };
 
         const exitRoom = () => {
             socket.emit('getCurrentRoomInfo', (roomInfo) => {
@@ -70,12 +70,12 @@
                     clearUserList();
                 }
             });
-        }
+        };
 
         const clearUserList = () => {
             userListContainer.innerHTML = '';
             roomChatList.innerHTML = '';
-        }
+        };
 
         const sendRoomMessage = () => {
             const message = roomMessageInput.value.trim();
@@ -92,7 +92,7 @@
                 roomMessageInput.value = '';
                 hideTypingIndicator();
             }
-        }
+        };
 
         const appendMessage = (room, message) => {
             const chatList = roomChatList;
@@ -107,7 +107,7 @@
             chatList.appendChild(li);
 
             roomChatContainer.scrollTop = roomChatContainer.scrollHeight;
-        }
+        };
 
         const sendMessage = (event) => {
             if (event.key === 'Enter') {
@@ -116,7 +116,23 @@
             } else {
                 socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
             }
-        }
+        };
+
+        const requestNotificationPermission = () => {
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        console.log("Notification permission granted.");
+                    }
+                });
+            }
+        };
+
+        const showNotification = (title, message) => {
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body: message });
+            }
+        };
 
         socket.on('userList', ({ room, userList }) => {
             const enteredRoom = room;
@@ -134,15 +150,18 @@
         socket.on('userJoined', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방에 입장했습니다.`);
             addUserToList(userId);
+            showNotification('새 사용자 입장', `${userId}님이 방에 입장했습니다.`);
         });
 
         socket.on('userLeft', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방을 떠났습니다.`);
             removeUserFromList(userId);
+            showNotification('사용자 퇴장', `${userId}님이 방을 떠났습니다.`);
         });
 
         socket.on('chatMessage', ({ userId, message, room }) => {
             appendMessage(room, `${userId} : ${message}`);
+            showNotification(`${userId}님의 메시지`, message);
         });
 
         socket.on('newRoomCreated', (newRoom) => {
@@ -155,6 +174,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('random-animal-name').innerHTML = getRandomAnimalName;
+            requestNotificationPermission();
         });
 
         let typingTimeout;
