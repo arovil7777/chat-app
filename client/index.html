@@ -16,18 +16,22 @@
                 <header>
                     <h2>ROOM</h2>
                     <div class="button-container">
-                        <button onclick="joinRoom('room')">입장</button>
-                        <button onclick="exitRoom('room')">퇴장</button>
+                        <button onclick="joinRoom()">입장</button>
+                        <button onclick="exitRoom()">퇴장</button>
                     </div>
                 </header>
-                <div class="users" id="room-users"></div>
+                <div class="user-list">
+                    <h3>입장한 사용자 목록</h3>
+                    <ul id="user-list"></ul>
+                </div>
                 <div class="chat-container" id="room-chat-container">
                     <ul class="chat-list" id="room-chat-list"></ul>
                 </div>
+                <div id="typing-indicator" style="display: none;">입력 중입니다...</div>
                 <div class="chat-input">
                     <input type="text" class="room-message-input" id="room-message-input" placeholder="메시지를 입력하세요."
-                        onkeyup="sendMessage(event, 'room')" />
-                    <button onclick="sendRoomMessage('room')">보내기</button>
+                        onkeyup="sendMessage(event)" />
+                    <button onclick="sendRoomMessage()">보내기</button>
                 </div>
             </div>
         </div>
@@ -36,7 +40,8 @@
     <script>
         const socket = io();
 
-        const roomUsers = document.getElementById('room-users');
+        let currentRoom = 'room - 0';
+        const userListContainer = document.getElementById('user-list');
         const roomChatList = document.getElementById('room-chat-list');
         const roomChatContainer = document.getElementById('room-chat-container');
         const roomMessageInput = document.getElementById('room-message-input');
@@ -52,74 +57,180 @@
         const getRandomAnimalName = animalNames[Math.floor(Math.random() * animalNames.length)] + '-' + Math.floor(Math.random() * 100).toString();
         socket.emit('setUserNick', getRandomAnimalName);
 
-        const joinRoom = (room) => {
-            socket.emit('join', room);
-        }
+        const joinRoom = () => {
+            socket.emit('join', currentRoom);
+        };
 
-        const exitRoom = (room) => {
-            if (!room) return;
+        const exitRoom = () => {
+            socket.emit('getCurrentRoomInfo', (roomInfo) => {
+                if (roomInfo) {
+                    const { room } = roomInfo;
+                    socket.emit('exit', room);
 
-            roomUsers.innerHTML = '';
+                    clearUserList();
+                }
+            });
+        };
+
+        const clearUserList = () => {
+            userListContainer.innerHTML = '';
             roomChatList.innerHTML = '';
-            socket.emit('exit', room);
-        }
+        };
 
-        const sendRoomMessage = (room) => {
+        const sendRoomMessage = () => {
             const message = roomMessageInput.value.trim();
 
             if (message.trim() !== '') {
-                socket.emit('chatMessage', { message, room });
+                socket.emit('getCurrentRoomInfo', (roomInfo) => {
+                    if (roomInfo) {
+                        const { room } = roomInfo;
+                        socket.emit('chatMessage', { message, room });
+                        socket.emit('stopTyping', room);
+                    }
+                });
+
                 roomMessageInput.value = '';
+                hideTypingIndicator();
             }
-        }
+        };
 
         const appendMessage = (room, message) => {
             const chatList = roomChatList;
             const li = document.createElement('li');
             li.className = 'chat-item';
+
             const p = document.createElement('p');
-            p.textContent = message;
+            const time = new Date().toLocaleTimeString();
+            p.textContent = `${time} - ${message}`;
+
             li.appendChild(p);
             chatList.appendChild(li);
 
             roomChatContainer.scrollTop = roomChatContainer.scrollHeight;
-        }
+        };
 
-        const sendMessage = (event, room) => {
-            if (event.key === 'Enter') sendRoomMessage(room);
-        }
+        const sendMessage = (event) => {
+            if (event.key === 'Enter') {
+                sendRoomMessage();
+                hideTypingIndicator();
+            } else {
+                socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
+            }
+        };
+
+        const requestNotificationPermission = () => {
+            if (Notification.permission !== 'granted') {
+                Notification.requestPermission().then(permission => {
+                    console.log('Notification permission status:', permission);
+                    if (permission === 'granted') {
+                        console.log("Notification permission granted.");
+                    }
+                });
+            }
+        };
+
+        const showNotification = (title, message) => {
+            if (Notification.permission === 'granted') {
+                new Notification(title, { body: message });
+            }
+        };
 
         socket.on('userList', ({ room, userList }) => {
-            if (!room) return;
+            const enteredRoom = room;
+            socket.emit('getCurrentRoomInfo', (roomInfo) => {
+                if (roomInfo) {
+                    const { room } = roomInfo;
 
-            const usersElement = roomUsers;
-            usersElement.innerHTML = '';
-            userList.forEach((userId) => {
-                const p = document.createElement('p');
-                p.textContent = userId;
-                usersElement.appendChild(p);
+                    if (enteredRoom === room) {
+                        updateUserList(userList);
+                    }
+                }
             });
         });
 
         socket.on('userJoined', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방에 입장했습니다.`);
+            addUserToList(userId);
+            showNotification('새 사용자 입장', `${userId}님이 방에 입장했습니다.`);
         });
 
         socket.on('userLeft', ({ userId, room }) => {
             appendMessage(room, `${userId}님이 방을 떠났습니다.`);
+            removeUserFromList(userId);
+            showNotification('사용자 퇴장', `${userId}님이 방을 떠났습니다.`);
         });
 
         socket.on('chatMessage', ({ userId, message, room }) => {
             appendMessage(room, `${userId} : ${message}`);
+            showNotification(`${userId}님의 메시지`, message);
+        });
+
+        socket.on('newRoomCreated', (newRoom) => {
+            currentRoom = newRoom;
         });
 
         socket.on('joinError', (errorMessage) => {
             alert(errorMessage);
-        })
+        });
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('random-animal-name').innerHTML = getRandomAnimalName;
+            requestNotificationPermission();
         });
+
+        let typingTimeout;
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'block';
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(hideTypingIndicator, 3000); // 3초 후 인디케이터 숨기기
+        }
+
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function getCurrentUsers() {
+            const userListItems = userListContainer.getElementsByTagName('li');
+            return Array.from(userListItems).map(item => item.textContent);
+        }
+
+        function updateUserList(users) {
+            userListContainer.innerHTML = '';
+            users.forEach((user) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = user.nick;
+                userListContainer.appendChild(listItem);
+            });
+        }
+
+        function addUserToList(userId) {
+            const listItem = document.createElement('li');
+            listItem.textContent = userId;
+            userListContainer.appendChild(listItem);
+        }
+
+        function removeUserFromList(userId) {
+            const userListItems = userListContainer.getElementsByTagName('li');
+            Array.from(userListItems).forEach(item => {
+                if (item.textContent === userId) {
+                    item.remove();
+                }
+            });
+        }
+
+        roomMessageInput.addEventListener('input', () => {
+            socket.emit('typing', { room: currentRoom, user: getRandomAnimalName });
+        });
+
+        socket.on('typing', ({ user }) => {
+            showTypingIndicator();
+        });
+
+        socket.on('stopTyping', ({ user }) => {
+            hideTypingIndicator();
+        })
     </script>
 </body>
 
