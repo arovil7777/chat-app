@@ -54,3 +54,8 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# SSL 인증서 및 키 파일
+ssl/*
+ssl/key.pem
+ssl/cert.pem
